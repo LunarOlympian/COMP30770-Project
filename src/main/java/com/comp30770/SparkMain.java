@@ -54,7 +54,7 @@ public class SparkMain {
 
 
         // Cache the RDD for faster access
-        parsedData.cache();
+
 
         // Helper function to clean numeric values
         JavaRDD<String[]> validRowsRDD = parsedData
@@ -63,24 +63,47 @@ public class SparkMain {
                 .filter(row -> isValidNumeric(row[10]) && isValidNumeric(row[14]) && isValidNumeric(row[16]) && isValidNumeric(row[18]) && isValidNumeric(row[23])); // Validate numeric fields
         validRowsRDD.cache();
 
-        // Compute averages for duration, energy, loudness, and tempo by country
-        JavaPairRDD<String, Tuple5<Double, Double, Double, Double, Double>> averages =
-                validRowsRDD.mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple10<>(parseDouble(row[10]), 1, parseDouble(row[14]), 1, parseDouble(row[16]), 1, parseDouble(row[18]), 1, parseDouble(row[23]), 1)))
-                .reduceByKey((a, b) -> new Tuple10<>(a._1() + b._1(), a._2() + b._2(), a._3() + b._3(), a._4() + b._4(), a._5() + b._5(),
-                        a._6() + b._6(), a._7() + b._7(), a._8() + b._8(), a._9() + b._9(), a._10() + b._10()))
+        JavaPairRDD<String, Tuple2<double[], Integer>> combinedMetrics = validRowsRDD
+                .mapToPair(row -> {
+                    String country = row[6].trim();
+                    double duration = parseDouble(row[10]);
+                    double energy = parseDouble(row[14]);
+                    double loudness = parseDouble(row[16]);
+                    double tempo = parseDouble(row[23]);
+                    double speechiness = parseDouble(row[18]);
 
-                .mapValues(tuple -> new Tuple5<>(tuple._1() / tuple._2(), tuple._3() / tuple._4(), tuple._5() / tuple._6(),
-                tuple._7() / tuple._8(), tuple._9() / tuple._10())).cache();
+                    double[] features = new double[]{duration, energy, loudness, tempo, speechiness};
+                    return new Tuple2<>(country, new Tuple2<>(features, 1));
+                })
+                .reduceByKey((a, b) -> {
+                    double[] sumA = a._1;
+                    double[] sumB = b._1;
+                    double[] combined = new double[5];
+                    for (int i = 0; i < 5; i++) {
+                        combined[i] = sumA[i] + sumB[i];
+                    }
+                    return new Tuple2<>(combined, a._2 + b._2);
+                });
 
+// Print averages per country
+        combinedMetrics.foreach(tuple -> {
+            String country = tuple._1;
+            double[] sums = tuple._2._1;
+            int count = tuple._2._2;
 
-        // Collect and print the results
-        List<Tuple2<String, Tuple5<Double, Double, Double, Double, Double>>> countryAverages = averages.collect();
-        ArrayList<Country> countries = new ArrayList<>();
-        for(Tuple2<String, Tuple5<Double, Double, Double, Double, Double>> c : countryAverages) {
-            Tuple5<Double, Double, Double, Double, Double> avgs = c._2;
-            countries.add(new Country(c._1, avgs._1(), avgs._2(), avgs._3(), avgs._4(), avgs._5()));
-            System.out.println(countries.get(countries.size() - 1));
-        }
+            double avgDuration = sums[0] / count;
+            double avgEnergy = sums[1] / count;
+            double avgLoudness = sums[2] / count;
+            double avgTempo = sums[3] / count;
+            double avgSpeechiness = sums[4] / count;
+
+            System.out.println("Country: " + country +
+                    " | Duration: " + avgDuration +
+                    " | Energy: " + avgEnergy +
+                    " | Loudness: " + avgLoudness +
+                    " | Tempo: " + avgTempo +
+                    " | Speechiness: " + avgSpeechiness);
+        });
 
 
         // Stop the Spark context
