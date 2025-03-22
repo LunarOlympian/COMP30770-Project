@@ -31,6 +31,7 @@ public class StandardMain {
         Map<String, Pair<Double, Integer>> duration = new HashMap<>(); // 10
         Map<String, Pair<Double, Integer>> energy = new HashMap<>(); // 14
         Map<String, Pair<Double, Integer>> loudness = new HashMap<>(); // 16
+        Map<String, Pair<Double, Integer>> spechiness = new HashMap<>(); // 18
         Map<String, Pair<Double, Integer>> tempo = new HashMap<>(); // 23
         for(String[] song : songs) {
             String country = song[6];
@@ -38,28 +39,28 @@ public class StandardMain {
             Pair<Double, Integer> durationVals = duration.getOrDefault(country, new Pair<>(0d, 0));
             Pair<Double, Integer> energyVals = energy.getOrDefault(country, new Pair<>(0d, 0));
             Pair<Double, Integer> loudnessVals = loudness.getOrDefault(country, new Pair<>(0d, 0));
+            Pair<Double, Integer> speechinessVals = spechiness.getOrDefault(country, new Pair<>(0d, 0));
             Pair<Double, Integer> tempoVals = tempo.getOrDefault(country, new Pair<>(0d, 0));
 
             duration.put(country, new Pair<>(durationVals.getValue0() + Double.parseDouble(song[10]), durationVals.getValue1() + 1));
             energy.put(country, new Pair<>(energyVals.getValue0() + Double.parseDouble(song[14]), energyVals.getValue1() + 1));
             loudness.put(country, new Pair<>(loudnessVals.getValue0() + Double.parseDouble(song[16]), loudnessVals.getValue1() + 1));
+            spechiness.put(country, new Pair<>(speechinessVals.getValue0() + Double.parseDouble(song[18]), speechinessVals.getValue1() + 1));
             tempo.put(country, new Pair<>(tempoVals.getValue0() + Double.parseDouble(song[23]), tempoVals.getValue1() + 1));
         }
 
-        ArrayList<Pair<String, Double>> averageDurations = new ArrayList<>();
-        ArrayList<Pair<String, Double>> averageEnergy = new ArrayList<>();
-        ArrayList<Pair<String, Double>> averageLoudness = new ArrayList<>();
-        ArrayList<Pair<String, Double>> averageTempos = new ArrayList<>();
+        ArrayList<Country> countries = new ArrayList<>();
 
-        duration.forEach((country, vals) -> averageDurations.add(new Pair<>(country, vals.getValue0() / vals.getValue1())));
-        energy.forEach((country, vals) -> averageEnergy.add(new Pair<>(country, vals.getValue0() / vals.getValue1())));
-        loudness.forEach((country, vals) -> averageLoudness.add(new Pair<>(country, vals.getValue0() / vals.getValue1())));
-        tempo.forEach((country, vals) -> averageTempos.add(new Pair<>(country, vals.getValue0() / vals.getValue1())));
+        for(String c : duration.keySet()) {
+            countries.add(new Country(c, duration.get(c).getValue0() / duration.get(c).getValue1(),
+                    energy.get(c).getValue0() / energy.get(c).getValue1(),
+                    loudness.get(c).getValue0() / loudness.get(c).getValue1(),
+                    spechiness.get(c).getValue0() / spechiness.get(c).getValue1(),
+                    tempo.get(c).getValue0() / tempo.get(c).getValue1()));
+        }
+        countries.sort(Comparator.comparing(c -> c.country));
 
-        averageDurations.sort(Comparator.comparing(Pair::getValue1));
-        averageEnergy.sort(Comparator.comparing(Pair::getValue1));
-        averageLoudness.sort(Comparator.comparing(Pair::getValue1));
-        averageTempos.sort(Comparator.comparing(Pair::getValue1));
+        countries.forEach(System.out::println);
 
     }
 }
