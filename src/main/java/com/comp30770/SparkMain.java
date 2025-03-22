@@ -1,24 +1,36 @@
 package com.comp30770;
 
 import com.opencsv.CSVReader;
+import org.apache.hadoop.shaded.org.eclipse.jetty.websocket.common.frames.DataFrame;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import java.io.StringReader;
-import scala.Tuple2;
 
+import java.awt.*;
+import java.io.StringReader;
+
+import org.apache.spark.storage.StorageLevel;
+import scala.Tuple10;
+import scala.Tuple2;
+import scala.Tuple5;
+
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class SparkMain {
     public static void main(String[] args) {
-
-        long startTime = System.currentTimeMillis();
         // Initialize Spark
         SparkConf conf = new SparkConf().setAppName("Spotify Music Analysis").setMaster("local[*]");
+        conf.set("spark.executor.instances", "4");
+        conf.set("spark.executor.cores", "4");
+
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         sc.setLogLevel("ERROR");
+
+        long startTime = System.currentTimeMillis();
 
         // Load the dataset
         JavaRDD<String> rawData = sc.textFile("target/classes/csv/Top_spotify_songs.csv");
@@ -48,44 +60,27 @@ public class SparkMain {
         JavaRDD<String[]> validRowsRDD = parsedData
                 .filter(row -> row.length > 23) // Ensure the row has enough columns
                 .filter(row -> row[6].matches("^[A-Z]{2}$")) // Ensure country is valid
-                .filter(row -> isValidNumeric(row[10]) && isValidNumeric(row[14]) && isValidNumeric(row[16]) && isValidNumeric(row[23])); // Validate numeric fields
+                .filter(row -> isValidNumeric(row[10]) && isValidNumeric(row[14]) && isValidNumeric(row[16]) && isValidNumeric(row[18]) && isValidNumeric(row[23])); // Validate numeric fields
+        validRowsRDD.cache();
 
         // Compute averages for duration, energy, loudness, and tempo by country
-        JavaPairRDD<String, Tuple2<Double, Integer>> duration = validRowsRDD
-                .mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple2<>(parseDouble(row[10]), 1)))
-                .reduceByKey((a, b) -> new Tuple2<>(a._1 + b._1, a._2 + b._2));
+        JavaPairRDD<String, Tuple5<Double, Double, Double, Double, Double>> averages =
+                validRowsRDD.mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple10<>(parseDouble(row[10]), 1, parseDouble(row[14]), 1, parseDouble(row[16]), 1, parseDouble(row[18]), 1, parseDouble(row[23]), 1)))
+                .reduceByKey((a, b) -> new Tuple10<>(a._1() + b._1(), a._2() + b._2(), a._3() + b._3(), a._4() + b._4(), a._5() + b._5(),
+                        a._6() + b._6(), a._7() + b._7(), a._8() + b._8(), a._9() + b._9(), a._10() + b._10()))
 
-        JavaPairRDD<String, Tuple2<Double, Integer>> energy = validRowsRDD
-                .mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple2<>(parseDouble(row[14]), 1)))
-                .reduceByKey((a, b) -> new Tuple2<>(a._1 + b._1, a._2 + b._2));
-
-        JavaPairRDD<String, Tuple2<Double, Integer>> loudness = validRowsRDD
-                .mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple2<>(parseDouble(row[16]), 1)))
-                .reduceByKey((a, b) -> new Tuple2<>(a._1 + b._1, a._2 + b._2));
-
-        JavaPairRDD<String, Tuple2<Double, Integer>> tempo = validRowsRDD
-                .mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple2<>(parseDouble(row[23]), 1)))
-                .reduceByKey((a, b) -> new Tuple2<>(a._1 + b._1, a._2 + b._2));
-
-        JavaPairRDD<String, Tuple2<Double, Integer>> speechiness = validRowsRDD
-                .mapToPair(row -> new Tuple2<>(row[6].trim(), new Tuple2<>(parseDouble(row[18]), 1)))
-                .reduceByKey((a, b) -> new Tuple2<>(a._1 + b._1, a._2 + b._2));
-
-
-        // Calculate averages
-        JavaPairRDD<String, Double> averageDurations = duration.mapValues(tuple -> tuple._1 / tuple._2);
-        JavaPairRDD<String, Double> averageEnergy = energy.mapValues(tuple -> tuple._1 / tuple._2);
-        JavaPairRDD<String, Double> averageLoudness = loudness.mapValues(tuple -> tuple._1 / tuple._2);
-        JavaPairRDD<String, Double> averageTempos = tempo.mapValues(tuple -> tuple._1 / tuple._2);
-        JavaPairRDD<String, Double> averageSpeechiness = speechiness.mapValues(tuple -> tuple._1 / tuple._2);
+                .mapValues(tuple -> new Tuple5<>(tuple._1() / tuple._2(), tuple._3() / tuple._4(), tuple._5() / tuple._6(),
+                tuple._7() / tuple._8(), tuple._9() / tuple._10())).cache();
 
 
         // Collect and print the results
-        printResults("Average Durations by Country", averageDurations.collect());
-        printResults("Average Energy by Country", averageEnergy.collect());
-        printResults("Average Loudness by Country", averageLoudness.collect());
-        printResults("Average Tempos by Country", averageTempos.collect());
-        printResults("Average Speechiness by Country", averageSpeechiness.collect());
+        List<Tuple2<String, Tuple5<Double, Double, Double, Double, Double>>> countryAverages = averages.collect();
+        ArrayList<Country> countries = new ArrayList<>();
+        for(Tuple2<String, Tuple5<Double, Double, Double, Double, Double>> c : countryAverages) {
+            Tuple5<Double, Double, Double, Double, Double> avgs = c._2;
+            countries.add(new Country(c._1, avgs._1(), avgs._2(), avgs._3(), avgs._4(), avgs._5()));
+            System.out.println(countries.get(countries.size() - 1));
+        }
 
 
         // Stop the Spark context
@@ -94,7 +89,7 @@ public class SparkMain {
         long endTime = System.currentTimeMillis();    // End timer
         long timeDuration = endTime - startTime;
 
-        System.out.println("Total Runtime: " + duration + " ms (" + (timeDuration / 1000.0) + " seconds)");
+        System.out.println("Total Runtime: " + timeDuration + " ms (" + (timeDuration / 1000.0) + " seconds)");
     }
 
     // Helper function to clean and parse double values
