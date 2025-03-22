@@ -20,6 +20,7 @@ import java.util.Map;
 public class StandardMain {
 
     public static void main(String[] args) throws URISyntaxException, IOException, CsvException {
+        long startTime = System.currentTimeMillis();
         // Loads the csv file
         CSVParser parser = new CSVParserBuilder().withSeparator(',').withIgnoreQuotations(false).build();
         CSVReader reader = new CSVReaderBuilder(Files.newBufferedReader(Path.of(ClassLoader.getSystemResource("csv/Top_spotify_songs.csv").toURI())))
@@ -61,6 +62,11 @@ public class StandardMain {
         countries.sort(Comparator.comparing(c -> c.country));
 
         countries.forEach(System.out::println);
+
+        long endTime = System.currentTimeMillis();    // End timer
+        long timeDuration = endTime - startTime;
+
+        System.out.println("Total Runtime: " + duration + " ms (" + (timeDuration / 1000.0) + " seconds)");
 
     }
 }
