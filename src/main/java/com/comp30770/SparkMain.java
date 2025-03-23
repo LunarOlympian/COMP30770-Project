@@ -33,14 +33,14 @@ public class SparkMain {
         long startTime = System.currentTimeMillis();
 
         // Load the dataset
-        JavaRDD<String> rawData = sc.textFile("target/classes/csv/Top_spotify_songs.csv");
+        JavaRDD<String> rawData = sc.textFile("target/classes/csv/Merged_Top_Spotify_Songs.csv");
 
         // Remove the header (handling different line endings)
         String header = rawData.first().trim();
         JavaRDD<String> data = rawData.filter(line -> !line.trim().equals(header));
 
         // Parse the data into a structured format (e.g., a JavaRDD of String arrays)
-        JavaRDD<String[]> parsedData = data.map(line -> {
+        JavaRDD<String[]> validRowsRDD = data.map(line -> {
             try (CSVReader reader = new CSVReader(new StringReader(line))) {
                 List<String[]> records = reader.readAll();
                 if (!records.isEmpty()) {
@@ -52,16 +52,10 @@ public class SparkMain {
             return new String[0]; // Return an empty row if parsing fails
         });
 
-
-        // Cache the RDD for faster access
-        parsedData.cache();
-
         // Helper function to clean numeric values
-        JavaRDD<String[]> validRowsRDD = parsedData
-                .filter(row -> row.length > 23) // Ensure the row has enough columns
+                /*.filter(row -> row.length > 23) // Ensure the row has enough columns
                 .filter(row -> row[6].matches("^[A-Z]{2}$")) // Ensure country is valid
-                .filter(row -> isValidNumeric(row[10]) && isValidNumeric(row[14]) && isValidNumeric(row[16]) && isValidNumeric(row[18]) && isValidNumeric(row[23])); // Validate numeric fields
-        validRowsRDD.cache();
+                .filter(row -> isValidNumeric(row[10]) && isValidNumeric(row[14]) && isValidNumeric(row[16]) && isValidNumeric(row[18]) && isValidNumeric(row[23])); // Validate numeric fields*/
 
         // Compute averages for duration, energy, loudness, and tempo by country
         JavaPairRDD<String, Tuple5<Double, Double, Double, Double, Double>> averages =
@@ -70,15 +64,16 @@ public class SparkMain {
                         a._6() + b._6(), a._7() + b._7(), a._8() + b._8(), a._9() + b._9(), a._10() + b._10()))
 
                 .mapValues(tuple -> new Tuple5<>(tuple._1() / tuple._2(), tuple._3() / tuple._4(), tuple._5() / tuple._6(),
-                tuple._7() / tuple._8(), tuple._9() / tuple._10())).cache();
+                tuple._7() / tuple._8(), tuple._9() / tuple._10()));
+
 
 
         // Collect and print the results
-        List<Tuple2<String, Tuple5<Double, Double, Double, Double, Double>>> countryAverages = averages.collect();
+        Map<String, Tuple5<Double, Double, Double, Double, Double>> countryAverages = averages.collectAsMap();
         ArrayList<Country> countries = new ArrayList<>();
-        for(Tuple2<String, Tuple5<Double, Double, Double, Double, Double>> c : countryAverages) {
-            Tuple5<Double, Double, Double, Double, Double> avgs = c._2;
-            countries.add(new Country(c._1, avgs._1(), avgs._2(), avgs._3(), avgs._4(), avgs._5()));
+        for(String c : countryAverages.keySet()) {
+            Tuple5<Double, Double, Double, Double, Double> avgs = countryAverages.get(c);
+            countries.add(new Country(c, avgs._1(), avgs._2(), avgs._3(), avgs._4(), avgs._5()));
             System.out.println(countries.get(countries.size() - 1));
         }
 
