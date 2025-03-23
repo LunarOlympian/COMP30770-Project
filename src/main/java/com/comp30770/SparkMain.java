@@ -33,7 +33,11 @@ public class SparkMain {
         long startTime = System.currentTimeMillis();
 
         // Load the dataset
-        JavaRDD<String> rawData = sc.textFile("target/classes/csv/Merged_Top_Spotify_Songs.csv");
+        JavaRDD<String> rawData = sc.textFile("target/classes/csv/Top_spotify_songs1.csv");
+        rawData.union(sc.textFile("target/classes/csv/Top_spotify_songs2.csv"));
+        rawData.union(sc.textFile("target/classes/csv/Top_spotify_songs3.csv"));
+        rawData.union(sc.textFile("target/classes/csv/Top_spotify_songs4.csv"));
+
 
         // Remove the header (handling different line endings)
         String header = rawData.first().trim();
@@ -76,7 +80,6 @@ public class SparkMain {
             countries.add(new Country(c, avgs._1(), avgs._2(), avgs._3(), avgs._4(), avgs._5()));
             System.out.println(countries.get(countries.size() - 1));
         }
-
 
         // Stop the Spark context
         sc.stop();

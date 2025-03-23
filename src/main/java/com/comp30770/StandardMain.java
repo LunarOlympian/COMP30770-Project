@@ -27,6 +27,7 @@ public class StandardMain {
                 .withCSVParser(parser).build();
 
         ArrayList<String[]> songs = new ArrayList<>(reader.readAll());
+        String section1 = "Section 1 Runtime: " + (System.currentTimeMillis() - startTime) + " ms (" + ((System.currentTimeMillis() - startTime) / 1000.0) + " seconds)";
 
         // Need a better way to do this
         Map<String, Pair<Double, Integer>> duration = new HashMap<>(); // 10
@@ -50,20 +51,25 @@ public class StandardMain {
             tempo.put(country, new Pair<>(tempoVals.getValue0() + Double.parseDouble(song[23]), tempoVals.getValue1() + 1));
         }
 
+        String section2 = "Section 2 Runtime: " + (System.currentTimeMillis() - startTime) + " ms (" + ((System.currentTimeMillis() - startTime) / 1000.0) + " seconds)";
+
         ArrayList<Country> countries = new ArrayList<>();
 
         for(String c : duration.keySet()) {
-            countries.add(new Country(c, duration.get(c).getValue0() / duration.get(c).getValue1(),
+            countries.add(new Country(c,
+                    duration.get(c).getValue0() / duration.get(c).getValue1(),
                     energy.get(c).getValue0() / energy.get(c).getValue1(),
                     loudness.get(c).getValue0() / loudness.get(c).getValue1(),
                     spechiness.get(c).getValue0() / spechiness.get(c).getValue1(),
                     tempo.get(c).getValue0() / tempo.get(c).getValue1()));
         }
         countries.sort(Comparator.comparing(c -> c.country));
+        long timeDuration = System.currentTimeMillis() - startTime;
 
         countries.forEach(System.out::println);
 
-        long timeDuration = System.currentTimeMillis() - startTime;
+        System.out.println(section1);
+        System.out.println(section2);
         System.out.println("Total Runtime: " + timeDuration + " ms (" + (timeDuration / 1000.0) + " seconds)");
 
     }

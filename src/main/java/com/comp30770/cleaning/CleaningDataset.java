@@ -18,12 +18,35 @@ import java.util.regex.Pattern;
 public class CleaningDataset {
 
     public static void main(String[] args) throws IOException, CsvException, URISyntaxException {
-        FileWriter writer = new FileWriter("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Merged_Top_Spotify_Songs.csv");
-        writer.write(
-                Files.readString(new File("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs.csv").toPath()) + "\n" +
-                    Files.readString(new File("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs_2.csv").toPath())
-        );
-        writer.close();
+        FileWriter[] writers = new FileWriter[]{
+                new FileWriter("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs1.csv"),
+                new FileWriter("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs2.csv"),
+                new FileWriter("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs3.csv"),
+                new FileWriter("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs4.csv")
+        };
+
+        String datasets = Files.readString(new File("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs.csv").toPath()) + "\n" +
+                Files.readString(new File("C:\\Users\\sebas\\Documents\\Web Dev\\Project\\22206116\\COMP30770-Project\\src\\main\\resources\\csv\\Top_spotify_songs_2.csv").toPath());
+
+        String[] dataset = datasets.split("\n");
+        datasets = null;
+        System.gc(); // I don't want my laptop to die :(
+
+        int startPos = 0;
+        int incrementAmount = dataset.length / 4;
+
+        for(FileWriter writer : writers) {
+            StringBuilder writingContent = new StringBuilder();
+            for(int i = startPos; i < startPos + incrementAmount; i++) {
+                writingContent.append("\n").append(dataset[i]);
+            }
+            startPos += incrementAmount;
+
+            writer.write(
+                    writingContent.toString().trim()
+            );
+            writer.close();
+        }
     }
 
     private static boolean isNumeric(String num) {
