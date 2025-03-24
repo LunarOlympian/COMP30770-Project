@@ -11,6 +11,7 @@ import java.awt.*;
 import java.io.StringReader;
 
 import org.apache.spark.storage.StorageLevel;
+import org.checkerframework.checker.units.qual.A;
 import scala.Tuple10;
 import scala.Tuple2;
 import scala.Tuple5;
@@ -18,8 +19,10 @@ import scala.Tuple5;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SparkMain {
+    public static AtomicLong timing1 = new AtomicLong();
     public static void main(String[] args) {
         // Initialize Spark
         SparkConf conf = new SparkConf().setAppName("Spotify Music Analysis").setMaster("local[*]");
@@ -33,15 +36,13 @@ public class SparkMain {
         long startTime = System.currentTimeMillis();
 
         // Load the dataset
-        JavaRDD<String> rawData = sc.textFile("target/classes/csv/Top_spotify_songs1.csv");
-        rawData.union(sc.textFile("target/classes/csv/Top_spotify_songs2.csv"));
-        rawData.union(sc.textFile("target/classes/csv/Top_spotify_songs3.csv"));
-        rawData.union(sc.textFile("target/classes/csv/Top_spotify_songs4.csv"));
-
+        JavaRDD<String> rawData = sc.textFile("target/classes/csv/Merged_Top_Spotify_Songs.csv");
 
         // Remove the header (handling different line endings)
         String header = rawData.first().trim();
         JavaRDD<String> data = rawData.filter(line -> !line.trim().equals(header));
+
+        JavaRDD<Long> timings = sc.parallelize(new ArrayList<>(List.of(new Long[]{0L, 1L})));
 
         // Parse the data into a structured format (e.g., a JavaRDD of String arrays)
         JavaRDD<String[]> validRowsRDD = data.map(line -> {
@@ -56,10 +57,6 @@ public class SparkMain {
             return new String[0]; // Return an empty row if parsing fails
         });
 
-        // Helper function to clean numeric values
-                /*.filter(row -> row.length > 23) // Ensure the row has enough columns
-                .filter(row -> row[6].matches("^[A-Z]{2}$")) // Ensure country is valid
-                .filter(row -> isValidNumeric(row[10]) && isValidNumeric(row[14]) && isValidNumeric(row[16]) && isValidNumeric(row[18]) && isValidNumeric(row[23])); // Validate numeric fields*/
 
         // Compute averages for duration, energy, loudness, and tempo by country
         JavaPairRDD<String, Tuple5<Double, Double, Double, Double, Double>> averages =
@@ -80,12 +77,16 @@ public class SparkMain {
             countries.add(new Country(c, avgs._1(), avgs._2(), avgs._3(), avgs._4(), avgs._5()));
             System.out.println(countries.get(countries.size() - 1));
         }
+        // 1742773192933 1742773183150 1742773192503
+
 
         // Stop the Spark context
         sc.stop();
 
         long endTime = System.currentTimeMillis();    // End timer
         long timeDuration = endTime - startTime;
+        System.out.println(endTime);
+        System.out.println(timing1.get());
 
         System.out.println("Total Runtime: " + timeDuration + " ms (" + (timeDuration / 1000.0) + " seconds)");
     }
